@@ -3,16 +3,18 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
-// This component wraps any route that should be private
-function PrivateRoute({ children }) {
-  const { user } = useAuth();
+function PrivateRoute({ children, adminOnly = false }) {
+  const { user, userRole } = useAuth();
 
-  // If no user is logged in, redirect to login page
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  // Not logged in? Redirect to login.
+  if (!user) return <Navigate to="/login" replace />;
+
+  // If this route is admin-only but the user is not admin, block it.
+  if (adminOnly && userRole !== 'admin') {
+    return <Navigate to="/view" replace />;
   }
 
-  // If user is logged in, render the wrapped children
+  // Otherwise, render the protected route.
   return children;
 }
 

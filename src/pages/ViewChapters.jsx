@@ -1,17 +1,22 @@
 // ViewChapters.jsx
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
+import * as XLSX from 'xlsx';
+import { useAuth } from '../AuthContext';
 import EditChapterLocationForm from '../components/EditChapterLocationForm';
 import EditChapterLinksForm from '../components/EditChapterLinksForm';
 import EditChapterTeamForm from '../components/EditChapterTeamForm';
 import EditChapterActivitiesForm from '../components/EditChapterActivitiesForm';
 
 function ViewChapters() {
+  const { userRole } = useAuth();
   const [chapters, setChapters] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
   const [editedData, setEditedData] = useState({});
+  const [filterCountry, setFilterCountry] = useState('');
+  const [filterRegion, setFilterRegion] = useState('');
 
   useEffect(() => {
     const fetchChapters = async () => {
@@ -33,14 +38,81 @@ function ViewChapters() {
   const filteredChapters = chapters.filter((chapter) => {
     const loc = chapter.location || {};
     const query = searchQuery.toLowerCase();
+    const countryMatch = !filterCountry || loc.selectedCountry === filterCountry;
+    const regionMatch = !filterRegion || loc.selectedRegion === filterRegion;
     return (
-      loc.chapterName?.toLowerCase().includes(query) ||
-      loc.selectedCountry?.toLowerCase().includes(query) ||
-      loc.selectedRegion?.toLowerCase().includes(query) ||
-      loc.city?.toLowerCase().includes(query) ||
-      chapter.description?.toLowerCase().includes(query)
+      (loc.chapterName?.toLowerCase().includes(query) ||
+        loc.selectedCountry?.toLowerCase().includes(query) ||
+        loc.selectedRegion?.toLowerCase().includes(query) ||
+        loc.city?.toLowerCase().includes(query) ||
+        chapter.description?.toLowerCase().includes(query)) &&
+      countryMatch &&
+      regionMatch
     );
   });
+
+  const generateXLSXData = () => {
+    const teamRows = [];
+    const eventRows = [];
+    filteredChapters.forEach((chapter) => {
+      const loc = chapter.location || {};
+      chapter.team_members?.forEach((member) => {
+        teamRows.push({
+          Chapter: loc.chapterName,
+          Country: loc.selectedCountry,
+          City: loc.city,
+          Region: loc.selectedRegion,
+          Name: member.name,
+          Role: member.role,
+          Phone: member.phone,
+          Email: member.email,
+          Title: member.title,
+          Note: member.note,
+          Status: member.status
+        });
+      });
+      chapter.events?.forEach((event) => {
+        eventRows.push({
+          Chapter: loc.chapterName,
+          Country: loc.selectedCountry,
+          City: loc.city,
+          Region: loc.selectedRegion,
+          Name: event.name,
+          Date: event.date,
+          Venue: event.venue,
+          TicketPrice: event.ticketPrice,
+          CelebrityGuests: event.celebrityGuests,
+          Capacity: event.capacity,
+          Attendance: event.attendanceCount,
+          Sponsors: event.sponsors,
+          FundsCollected: event.fundsCollected
+        });
+      });
+    });
+    return { teamRows, eventRows };
+  };
+
+  const handleDownloadXLSX = () => {
+    const { teamRows, eventRows } = generateXLSXData();
+    if (teamRows.length === 0 && eventRows.length === 0) return alert('No data to export.');
+
+    const wb = XLSX.utils.book_new();
+    if (teamRows.length) {
+      const ws1 = XLSX.utils.json_to_sheet(teamRows);
+      XLSX.utils.book_append_sheet(wb, ws1, 'Team Members');
+    }
+    if (eventRows.length) {
+      const ws2 = XLSX.utils.json_to_sheet(eventRows);
+      XLSX.utils.book_append_sheet(wb, ws2, 'Events');
+    }
+
+    const now = new Date();
+    const timestamp = now.toISOString().slice(0, 16).replace(/[:T]/g, '-');
+    XLSX.writeFile(wb, `indus_report_${timestamp}.xlsx`);
+  };
+
+  const uniqueCountries = [...new Set(chapters.map(c => c.location?.selectedCountry).filter(Boolean))];
+  const uniqueRegions = [...new Set(chapters.map(c => c.location?.selectedRegion).filter(Boolean))];
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this chapter?')) return;
@@ -115,6 +187,29 @@ function ViewChapters() {
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem' }}>
       <h2 style={{ color: '#0060af', marginBottom: '1rem' }}>All Chapters</h2>
+
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+        <select value={filterCountry} onChange={(e) => setFilterCountry(e.target.value)} style={{ padding: '0.5rem', borderRadius: '5px' }}>
+          <option value="">All Countries</option>
+          {uniqueCountries.map((c, i) => (
+            <option key={i} value={c}>{c}</option>
+          ))}
+        </select>
+        <select value={filterRegion} onChange={(e) => setFilterRegion(e.target.value)} style={{ padding: '0.5rem', borderRadius: '5px' }}>
+          <option value="">All Regions</option>
+          {uniqueRegions.map((r, i) => (
+            <option key={i} value={r}>{r}</option>
+          ))}
+        </select>
+        {userRole === 'admin' && (
+          <button
+            onClick={handleDownloadXLSX}
+            style={{ background: '#0060af', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}
+          >
+            📄 Download Report (XLSX)
+          </button>
+        )}
+      </div>
 
       <input
         type="text"
@@ -197,17 +292,19 @@ function ViewChapters() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.5rem' }}>
-                <button onClick={() => handleDelete(chapter.id)} style={{ backgroundColor: '#e01b24', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Delete</button>
-                {!isEditing ? (
-                  <button onClick={() => handleEdit(chapter)} style={{ backgroundColor: '#0060af', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Edit</button>
-                ) : (
-                  <>
-                    <button onClick={() => handleUpdate(chapter.id)} style={{ backgroundColor: '#007bff', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Save</button>
-                    <button onClick={() => setEditingId(null)} style={{ padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
-                  </>
-                )}
-              </div>
+              {userRole === 'admin' && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.5rem' }}>
+                  <button onClick={() => handleDelete(chapter.id)} style={{ backgroundColor: '#e01b24', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Delete</button>
+                  {!isEditing ? (
+                    <button onClick={() => handleEdit(chapter)} style={{ backgroundColor: '#0060af', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Edit</button>
+                  ) : (
+                    <>
+                      <button onClick={() => handleUpdate(chapter.id)} style={{ backgroundColor: '#007bff', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Save</button>
+                      <button onClick={() => setEditingId(null)} style={{ padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         );

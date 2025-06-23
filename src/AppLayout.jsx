@@ -5,7 +5,7 @@ import { useAuth } from './AuthContext';
 import { supabase } from './supabaseClient';
 
 function AppLayout({ children }) {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const navigate = useNavigate();
 
   // 🔓 Logout logic
@@ -23,7 +23,9 @@ function AppLayout({ children }) {
 
             {user && (
               <>
-                <Link to="/add" style={buttonStyle}>Add Chapter</Link>
+                {userRole === 'admin' ? (
+                  <Link to="/add" style={buttonStyle}>Add Chapter</Link>
+                ) : null}
                 <Link to="/view" style={buttonStyle}>View Chapters</Link>
               </>
             )}

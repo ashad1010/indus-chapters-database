@@ -2,41 +2,42 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
 
-// Create a context to store the user
+// Create the global auth context
 const AuthContext = createContext();
 
-// Provider to wrap around the App
+// AuthProvider wraps around your app and shares user info
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null); // state to hold the current user
+  const [user, setUser] = useState(null);         // holds full user object
+  const [userRole, setUserRole] = useState(null); // new: tracks 'admin' or 'user'
 
-  // Fetch the currently logged-in user on mount
   useEffect(() => {
     const getUser = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       setUser(user);
+      setUserRole(user?.user_metadata?.role || null); // pull role from metadata
     };
 
     getUser();
 
-    // Listen to login/logout changes
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user || null);
+      const currentUser = session?.user || null;
+      setUser(currentUser);
+      setUserRole(currentUser?.user_metadata?.role || null);
     });
 
-    // Cleanup listener on unmount
     return () => {
       listener.subscription.unsubscribe();
     };
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, setUser }}>
+    <AuthContext.Provider value={{ user, setUser, userRole }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Custom hook for easy usage
+// Custom hook to use in components
 export const useAuth = () => useContext(AuthContext);

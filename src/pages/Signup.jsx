@@ -19,7 +19,7 @@ function Signup() {
       email,
       password,
       options: {
-        data: { role: 'admin' }
+        data: { role: 'user' }
       }
     });
 

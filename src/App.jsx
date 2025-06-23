@@ -18,7 +18,7 @@ function App() {
           <Route
             path="/add"
             element={
-              <PrivateRoute>
+              <PrivateRoute adminOnly={true}>
                 <AddChapter />
               </PrivateRoute>
             }
