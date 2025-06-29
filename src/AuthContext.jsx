@@ -1,30 +1,69 @@
-// AuthContext.jsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
 
-// Create the global auth context
 const AuthContext = createContext();
 
-// AuthProvider wraps around your app and shares user info
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);         // holds full user object
-  const [userRole, setUserRole] = useState(null); // new: tracks 'admin' or 'user'
+  const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const [userCountry, setUserCountry] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const getUser = async () => {
+    const loadUser = async () => {
       const {
-        data: { user },
+        data: { user: currentUser },
+        error: authError,
       } = await supabase.auth.getUser();
-      setUser(user);
-      setUserRole(user?.user_metadata?.role || null); // pull role from metadata
+
+      if (authError) {
+        console.error("❌ Auth error:", authError);
+      }
+
+      console.log("👤 Supabase returned user:", currentUser);
+      setUser(currentUser);
+
+      if (currentUser) {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role, country')
+          .eq('user_id', currentUser.id)
+          .single();
+
+        if (error) {
+          console.error("❌ Role fetch error:", error.message);
+        } else {
+          console.log("✅ Fetched role:", data.role, "| Country:", data.country);
+          setUserRole(data.role);
+          setUserCountry(data.country);
+        }
+      }
+
+      setLoading(false);
     };
 
-    getUser();
+    loadUser();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       const currentUser = session?.user || null;
+      console.log("🔄 Auth state change - user:", currentUser);
       setUser(currentUser);
-      setUserRole(currentUser?.user_metadata?.role || null);
+
+      if (currentUser) {
+        supabase
+          .from('user_roles')
+          .select('role, country')
+          .eq('user_id', currentUser.id)
+          .single()
+          .then(({ data }) => {
+            console.log("🔁 Fetched from listener:", data);
+            setUserRole(data?.role || null);
+            setUserCountry(data?.country || null);
+          });
+      } else {
+        setUserRole(null);
+        setUserCountry(null);
+      }
     });
 
     return () => {
@@ -32,12 +71,15 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
+  if (loading) {
+    return <div style={{ padding: '2rem' }}>⏳ Loading context...</div>;
+  }
+
   return (
-    <AuthContext.Provider value={{ user, setUser, userRole }}>
+    <AuthContext.Provider value={{ user, userRole, userCountry, loading }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Custom hook to use in components
 export const useAuth = () => useContext(AuthContext);
