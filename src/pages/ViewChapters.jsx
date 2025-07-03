@@ -9,7 +9,9 @@ import EditChapterTeamForm from '../components/EditChapterTeamForm';
 import EditChapterActivitiesForm from '../components/EditChapterActivitiesForm';
 
 function ViewChapters() {
-  const { userRole } = useAuth();
+  // 🔐 Get user role and country from context
+  const { userRole, userCountry } = useAuth();
+
   const [chapters, setChapters] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -18,23 +20,25 @@ function ViewChapters() {
   const [filterCountry, setFilterCountry] = useState('');
   const [filterRegion, setFilterRegion] = useState('');
 
+  // ✅ Fetch filtered chapters on mount
   useEffect(() => {
-    const fetchChapters = async () => {
-      const { data, error } = await supabase
-        .from('chapters')
-        .select('*')
-        .order('created_at', { ascending: false });
+  const fetchChapters = async () => {
+    const { data, error } = await supabase
+      .from('chapters')
+      .select('*')
+      .order('created_at', { ascending: false }); // ✅ Pure query — let RLS handle filtering
 
-      if (error) {
-        console.error('❌ Fetch error:', error.message);
-      } else {
-        setChapters(data);
-      }
-      setLoading(false);
-    };
-    fetchChapters();
-  }, []);
+    if (error) {
+      console.error('❌ Fetch error:', error.message);
+    } else {
+      setChapters(data);
+    }
+    setLoading(false);
+  };
+  fetchChapters();
+}, [userRole, userCountry]);
 
+  // 🔍 Filter chapters based on search and dropdown
   const filteredChapters = chapters.filter((chapter) => {
     const loc = chapter.location || {};
     const query = searchQuery.toLowerCase();
@@ -51,6 +55,7 @@ function ViewChapters() {
     );
   });
 
+  // 📁 Generate Excel download data (no changes needed)
   const generateXLSXData = () => {
     const teamRows = [];
     const eventRows = [];
@@ -110,9 +115,6 @@ function ViewChapters() {
     const timestamp = now.toISOString().slice(0, 16).replace(/[:T]/g, '-');
     XLSX.writeFile(wb, `indus_report_${timestamp}.xlsx`);
   };
-
-  const uniqueCountries = [...new Set(chapters.map(c => c.location?.selectedCountry).filter(Boolean))];
-  const uniqueRegions = [...new Set(chapters.map(c => c.location?.selectedRegion).filter(Boolean))];
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this chapter?')) return;
@@ -188,19 +190,22 @@ function ViewChapters() {
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem' }}>
       <h2 style={{ color: '#0060af', marginBottom: '1rem' }}>All Chapters</h2>
 
+      {/* Country/Region Filters & Export */}
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
         <select value={filterCountry} onChange={(e) => setFilterCountry(e.target.value)} style={{ padding: '0.5rem', borderRadius: '5px' }}>
           <option value="">All Countries</option>
-          {uniqueCountries.map((c, i) => (
+          {[...new Set(chapters.map(c => c.location?.selectedCountry).filter(Boolean))].map((c, i) => (
             <option key={i} value={c}>{c}</option>
           ))}
         </select>
+
         <select value={filterRegion} onChange={(e) => setFilterRegion(e.target.value)} style={{ padding: '0.5rem', borderRadius: '5px' }}>
           <option value="">All Regions</option>
-          {uniqueRegions.map((r, i) => (
+          {[...new Set(chapters.map(c => c.location?.selectedRegion).filter(Boolean))].map((r, i) => (
             <option key={i} value={r}>{r}</option>
           ))}
         </select>
+
         {userRole === 'admin' && (
           <button
             onClick={handleDownloadXLSX}
@@ -219,6 +224,7 @@ function ViewChapters() {
         style={{ padding: '0.5rem', marginBottom: '1.5rem', width: '100%', borderRadius: '5px', border: '1px solid #ccc' }}
       />
 
+      {/* Chapters Display */}
       {filteredChapters.length === 0 && <p>No matching chapters found.</p>}
 
       {filteredChapters.map((chapter, index) => {
@@ -226,15 +232,11 @@ function ViewChapters() {
         const team = chapter.team_members || [];
         const isEditing = editingId === chapter.id;
 
+        const canEditDelete = userRole === 'admin' || (userRole === 'editor' && loc.selectedCountry === userCountry);
+
         return (
           <div key={chapter.id || index} style={{ border: '1px solid #ccc', background: 'white', borderRadius: '8px', marginBottom: '2rem', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
-            <div style={{
-              background: 'linear-gradient(90deg, #7e4ca1, #a34e7c)',
-              color: 'white',
-              padding: '1rem 1.5rem',
-              borderTopLeftRadius: '8px',
-              borderTopRightRadius: '8px'
-            }}>
+            <div style={{ background: 'linear-gradient(90deg, #7e4ca1, #a34e7c)', color: 'white', padding: '1rem 1.5rem', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}>
               <h3 style={{ margin: 0 }}>{loc.chapterName || `Chapter ${index + 1}`}</h3>
             </div>
 
@@ -292,7 +294,8 @@ function ViewChapters() {
                 </div>
               )}
 
-              {userRole === 'admin' && (
+              {/* 🛡️ Show edit/delete for authorized users only */}
+              {canEditDelete && (
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.5rem' }}>
                   <button onClick={() => handleDelete(chapter.id)} style={{ backgroundColor: '#e01b24', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Delete</button>
                   {!isEditing ? (

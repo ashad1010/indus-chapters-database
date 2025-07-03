@@ -5,7 +5,8 @@ import { useAuth } from './AuthContext';
 import { supabase } from './supabaseClient';
 
 function AppLayout({ children }) {
-  const { user, userRole } = useAuth();
+  // 🔐 Pull in user info, role, and country from context
+  const { user, userRole, userCountry } = useAuth();
   const navigate = useNavigate();
 
   // 🔓 Logout logic
@@ -21,23 +22,30 @@ function AppLayout({ children }) {
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
             <Link to="/" style={{ color: 'white', fontWeight: 'bold', textDecoration: 'none', fontSize: '1.1rem' }}>Indus Dashboard</Link>
 
+            {/* 👤 Show navigation links only if logged in */}
             {user && (
               <>
-                {userRole === 'admin' ? (
+                {/* ✅ Show 'Add Chapter' for admins or editors with valid country */}
+                {(userRole === 'admin' || (userRole === 'editor' && userCountry)) && (
                   <Link to="/add" style={buttonStyle}>Add Chapter</Link>
-                ) : null}
+                )}
+
+                {/* ✅ All logged-in users can view chapters */}
                 <Link to="/view" style={buttonStyle}>View Chapters</Link>
               </>
             )}
           </div>
 
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            {/* 🔐 Show login/signup when logged out */}
             {!user && (
               <>
                 <Link to="/login" style={buttonStyle}>Login</Link>
                 <Link to="/signup" style={buttonStyle}>Sign Up</Link>
               </>
             )}
+
+            {/* 🔓 Show logout button when logged in */}
             {user && (
               <button onClick={handleLogout} style={{ ...buttonStyle, background: '#e01b24' }}>Logout</button>
             )}
