@@ -26,9 +26,14 @@ function AppLayout({ children }) {
             {user && (
               <>
                 {/* ✅ Show 'Add Chapter' for admins or editors with valid country */}
-                {(userRole === 'admin' || (userRole === 'editor' && userCountry)) && (
+                {(userRole === 'admin' || userRole === 'super_admin' || (userRole === 'editor' && userCountry)) && (
                   <Link to="/add" style={buttonStyle}>Add Chapter</Link>
                 )}
+
+                {(userRole === 'admin' || userRole === 'super_admin') && (
+                  <Link to="/users" style={buttonStyle}>Manage Users</Link>
+                )}
+
 
                 {/* ✅ All logged-in users can view chapters */}
                 <Link to="/view" style={buttonStyle}>View Chapters</Link>

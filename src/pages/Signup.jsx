@@ -19,14 +19,14 @@ function Signup() {
       email,
       password,
       options: {
-        data: { role: 'user' }
+        data: { role: 'pending' } // 👈 Save role in user metadata
       }
     });
 
     if (error) {
       setError(error.message);
     } else {
-      alert('✅ Account created! Check your email to confirm it.');
+      alert('✅ Account created! Check your email to confirm it. You will be granted access once approved by an admin.');
       navigate('/login');
     }
 

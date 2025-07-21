@@ -206,7 +206,7 @@ function ViewChapters() {
           ))}
         </select>
 
-        {userRole === 'admin' && (
+        {['admin', 'super_admin', 'editor'].includes(userRole) && (
           <button
             onClick={handleDownloadXLSX}
             style={{ background: '#0060af', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}

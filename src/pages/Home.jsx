@@ -63,7 +63,7 @@ function Home() {
         <h2 style={{ color: '#0060af', marginBottom: '1rem' }}>Welcome to Indus Chapter Dashboard</h2>
         <p style={{ marginBottom: '1rem', color: '#333' }}>Use the buttons in the top right to navigate.</p>
         <p style={{ color: 'green', fontWeight: 'bold' }}>
-          {userEmail ? `🔐 Logged in as: ${userEmail}` : '🔐 Logged in'}
+          {userEmail ? `🔐 Logged in as: ${userEmail}` : '🔒 Logged Out'}
         </p>
       </div>
     </div>
