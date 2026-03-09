@@ -2,7 +2,7 @@
 
 **Contract Project for Indus Health Network**
 
-An internal web application developed under contract for [Indus Health Network](https://www.indushealthnetwork.com/), a real-world nonprofit healthcare organization. This dashboard provides IHN staff with a centralized platform to store, manage, and maintain information about the organization's fundraising chapters and their yearly events across the globe.
+An internal web application developed under contract for [Indus Health Network](https://indushospital.ca/), a real-world nonprofit healthcare organization. This dashboard provides IHN staff with a centralized platform to store, manage, and maintain information about the organization's fundraising chapters and their yearly events across the globe.
 
 ---
 
